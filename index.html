@@ -80,6 +80,12 @@
   .hm-tile.big { grid-column: 1 / -1; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); padding: 24px; }
   .hm-tile.big b { font-size: 24px; } .hm-tile.big span { color: var(--accent-ink); opacity: .85; font-size: 16px; }
   .hm-tile.feat { border-color: var(--accent-line); background: var(--accent-soft); }
+  .hm-top { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 14px; margin: 24px 0 8px; }
+  .hm-top .hm-tile { padding: 22px; min-height: 130px; } .hm-top .hm-tile.big { grid-column: auto; }
+  .hm-h { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 28px 0 0; }
+  .hm-h + .hm-grid { margin-top: 10px; margin-bottom: 0; }
+  .hm-new { font-style: normal; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 2px 7px; margin-left: 6px; vertical-align: 2px; }
+  @media (max-width: 760px) { .hm-top { grid-template-columns: 1fr; } .hm-top .hm-tile { min-height: 0; } }
   .brand { cursor: pointer; } .brand .t { white-space: nowrap; }
   .view { display: none; }
   .view.active { display: block; }
@@ -546,22 +552,36 @@
 
   <!-- ================= LEADERS ================= -->
   <section class="view active" id="view-home">
-    <div class="hm-hero"><h1>NBA stats you can turn into a post.</h1><p>Pick any stats and any season, then make a clean picture in seconds. Free, and it updates every night.</p></div>
-    <div class="hm-grid" id="hmGrid">
-      <button class="hm-tile big" data-go="create" type="button"><b>Create a picture</b><span>Scatter plots, tables, player comparisons, matchups and more. Drag things around, then download and post.</span></button>
-      <button class="hm-tile feat" data-go="matchup" type="button"><b>Matchup of the day</b><span>Tonight's best game with a projected score and the betting line.</span></button>
-      <button class="hm-tile" data-go="leaders" type="button"><b>Leaders</b><span>Sort every player in the league by any stat, any season.</span></button>
-      <button class="hm-tile" data-go="teams" type="button"><b>Teams</b><span>Pace, offensive and defensive rating, and more for every team.</span></button>
-      <button class="hm-tile" data-go="graph" type="button"><b>Graph</b><span>Plot every player as a dot, stat against stat.</span></button>
-      <button class="hm-tile" data-go="rankings" type="button"><b>Rankings</b><span>Compare a top 50 list to your own on the numbers.</span></button>
-      <button class="hm-tile feat" data-go="trade" type="button"><b>Trade machine</b><span>Check if a trade works under the cap rules, or let us find ideas for you.</span></button>
-      <button class="hm-tile" data-go="salaries" type="button"><b>Salaries</b><span>Every team's payroll against the cap, tax and aprons.</span></button>
-      <button class="hm-tile" data-go="lineups" type="button"><b>Lineups</b><span>Pick a team and players. See their net rating together.</span></button>
-      <button class="hm-tile" data-go="games" type="button"><b>Games</b><span>Guess the player from clues. A new one every day.</span></button>
-      <button class="hm-tile" data-go="archive" type="button"><b>Archive</b><span>Search every past New-Stat post by team, player or topic.</span></button>
-      <button class="hm-tile" data-go="finder" type="button"><b>Stat Finder</b><span>Type in the numbers you want and see who has hit them.</span></button>
-      <button class="hm-tile" data-go="creator" type="button"><b>Stat Creator</b><span>Build your own stat with a formula, like in Excel.</span></button>
-      <button class="hm-tile" data-go="guide" type="button"><b>Stat Guide</b><span>Every stat in plain English, and what counts as good.</span></button>
+    <div class="hm-hero"><h1>NBA stats you can turn into a post.</h1><p>Pick any stats and any season, then make a clean picture in seconds. Free.</p></div>
+    <div id="hmGrid">
+      <div class="hm-top">
+        <button class="hm-tile big" data-go="create" type="button"><b>Create a picture</b><span>Scatter plots, tables, player comparisons and matchups. Drag things around, then download and post.</span></button>
+        <button class="hm-tile feat" data-go="matchup" type="button"><b>Matchup of the day</b><span>Tonight's best game with a projected score and the betting line.</span></button>
+        <button class="hm-tile feat" data-go="trade" type="button"><b>Trade machine</b><span>Check a trade against the cap rules, or let us find ideas.</span></button>
+      </div>
+
+      <h2 class="hm-h">Explore the stats</h2>
+      <div class="hm-grid">
+        <button class="hm-tile" data-go="leaders" type="button"><b>Leaders</b><span>Every player, sorted by any stat, any season.</span></button>
+        <button class="hm-tile" data-go="graph" type="button"><b>Graph</b><span>Plot every player as a dot, stat against stat.</span></button>
+        <button class="hm-tile" data-go="lineups" type="button"><b>Lineups <i class="hm-new">New</i></b><span>Pick a team and players. See how they do together.</span></button>
+        <button class="hm-tile" data-go="teams" type="button"><b>Teams</b><span>Pace, offense and defense for every team.</span></button>
+        <button class="hm-tile" data-go="finder" type="button"><b>Stat Finder</b><span>Type in numbers and see who has hit them.</span></button>
+      </div>
+
+      <h2 class="hm-h">Build and compare</h2>
+      <div class="hm-grid">
+        <button class="hm-tile" data-go="creator" type="button"><b>Stat Creator</b><span>Build your own stat with a formula, like in Excel.</span></button>
+        <button class="hm-tile" data-go="rankings" type="button"><b>Rankings</b><span>Compare a top 50 list to your own on the numbers.</span></button>
+        <button class="hm-tile" data-go="salaries" type="button"><b>Salaries</b><span>Every team's payroll against the cap and aprons.</span></button>
+      </div>
+
+      <h2 class="hm-h">More</h2>
+      <div class="hm-grid">
+        <button class="hm-tile" data-go="games" type="button"><b>Games <i class="hm-new">New</i></b><span>Guess the player from clues. A new one every day.</span></button>
+        <button class="hm-tile" data-go="archive" type="button"><b>Archive</b><span>Search every past New-Stat post.</span></button>
+        <button class="hm-tile" data-go="guide" type="button"><b>Stat Guide</b><span>Every stat in plain English, and what counts as good.</span></button>
+      </div>
     </div>
   </section>
 
@@ -942,7 +962,7 @@
     <div id="guideBody"></div>
   </section>
 
-  <footer>Stats from ESPN's public feed, refreshed every night after games. This is an unofficial fan project.</footer>
+  <footer>Box-score stats come from ESPN and refresh every night after games. Advanced and tracking stats come from NBA.com and refresh every so often. This is an unofficial fan project.</footer>
 </div>
 </main>
 
