@@ -856,6 +856,7 @@
         <div class="field small" id="xMPGField"><label for="xMPG">Min MPG</label><input class="control" id="xMPG" type="number" min="0" value="0"></div>
         <div class="field" id="xTypeField" hidden><label for="xType">Games</label><select class="control" id="xType"><option value="B">Regular season + playoffs</option><option value="R">Regular season</option><option value="P">Playoffs</option></select></div>
       </div>
+      <div class="field" style="margin-bottom:12px"><label for="xAsk">Or just type what you want</label><div style="display:flex;gap:8px"><input class="control" id="xAsk" style="flex:1" placeholder="e.g. 25 points and 8 rebounds, or over 40% from three and 2 steals" autocomplete="off"><button class="btn sm primary" id="xAskGo" type="button">Find</button></div><div class="dim" id="xAskMsg" style="font-size:12.5px;margin-top:4px"></div></div>
       <div id="xRows"></div>
       <div class="fbar">
         <button class="btn sm primary" id="xAdd">+ Add a stat</button>
@@ -4281,9 +4282,9 @@ function buildFinderScopes() {
 async function finderGetRows(scope, onProgress) {
   if (finderRowsCache[scope]) return finderRowsCache[scope];
   let rows;
-  if (scope === "current") rows = (await fetchCached("stats.json")).players || [];
+  if (scope === "current") rows = (await mergeAdv(await fetchCached("stats.json"), "current")).players || [];
   else if (scope === "career") rows = (await fetchCached(seasonIndex.career.file)).players || [];
-  else if (scope.startsWith("s:")) rows = (await fetchCached(scope.slice(2))).players || [];
+  else if (scope.startsWith("s:")) rows = (await mergeAdv(await fetchCached(scope.slice(2)), "past")).players || [];
   else if (scope === "games") {
     const files = gamesIndex.seasons.map(x => x.file);
     let done = 0;
@@ -4545,6 +4546,60 @@ $("xAdd").onclick = () => {
   renderFinderRows(); queueFinder();
   const inputs = $("xRows").querySelectorAll("input.val"); if (inputs.length) inputs[inputs.length - 1].focus();
 };
+
+/* ---------- type-what-you-want search (simple word matching, not AI) ---------- */
+const ASK_STATS = [
+  [/(three|3)[ -]?(point(er)?s?|pt)?[ -]?(percent|percentage|%|pct)|3p ?%|3pt ?%|from (three|3|deep|downtown)/, "FG3_PCT"],
+  [/free[ -]?throw[ -]?(percent|percentage|%|pct)|ft ?%/, "FT_PCT"],
+  [/(field[ -]?goal|shooting)[ -]?(percent|percentage|%|pct)|fg ?%/, "FG_PCT"],
+  [/true[ -]?shooting|ts ?%/, "TS_PCT"],
+  [/threes|three[ -]?pointers?|3[ -]?pointers?|3s made|3pm|triples/, "FG3M"],
+  [/\b(points?|pts|ppg|scoring|scorers?)\b/, "PTS"],
+  [/\b(rebounds?|rebs?|rpg|boards)\b/, "REB"],
+  [/\b(assists?|asts?|apg|dimes)\b/, "AST"],
+  [/\b(steals?|stls?|spg)\b/, "STL"],
+  [/\b(blocks?|blks?|bpg)\b/, "BLK"],
+  [/\b(turnovers?|tov)\b/, "TOV"],
+  [/\b(minutes|mpg|mins?)\b/, "MIN"],
+  [/deflections?/, "DEFLECTIONS"],
+  [/contested shots?|contests/, "CONTESTED"],
+  [/drives?/, "DRIVES"],
+  [/touches/, "TOUCHES"],
+  [/usage/, "USG_PCT"],
+  [/net rating|nrtg/, "NRTG"],
+  [/\bper\b|efficiency rating/, "PER"],
+  [/plus[ -]?minus|\+\/-/, "PLUS_MINUS"],
+  [/double[ -]?doubles?/, "DD2"],
+  [/triple[ -]?doubles?/, "TD3"]
+];
+function askParse(text) {
+  let t = " " + text.toLowerCase().replace(/,/g, " and ").replace(/[()]/g, " ") + " ";
+  const parts = t.split(/ and |&|;| with | plus | who | while /).map(x => x.trim()).filter(Boolean), rows = [], used = [];
+  parts.forEach(p => {
+    const nm = /(-?\d+(?:\.\d+)?)/.exec(p); if (!nm) return;
+    let hit = null; for (const [re, key] of ASK_STATS) { if (re.test(p) && (!hit || p.search(re) < p.search(hit[0]))) hit = [re, key]; }
+    if (!hit) return;
+    const key = hit[1]; if (rows.some(r => r.stat === key) || !finderStatKeys().includes(key)) return;
+    let op = "ge";
+    if (/\b(under|below|less than|fewer than|at most|max|no more than|lower than|<)\b|<=/.test(p)) op = "le";
+    else if (/\b(about|around|roughly|near|close to)\b/.test(p)) op = "about";
+    rows.push({ stat: key, op, val: Number(nm[1]) }); used.push(p);
+  });
+  return rows.slice(0, 8);
+}
+function askGo() {
+  const q = $("xAsk").value.trim(), msg = $("xAskMsg");
+  if (!q) { msg.textContent = ""; return; }
+  const rows = askParse(q);
+  if (!rows.length) { msg.textContent = "Couldn't find a stat and number in that. Try something like “25 points and 8 rebounds”, or use the boxes below."; return; }
+  if ($("xScope") && $("xScope").value === "games") { $("xScope").value = "current"; $("xScope").dispatchEvent(new Event("change")); }
+  finder.rows = rows; finder.sortKey = null;
+  renderFinderRows(); queueFinder();
+  msg.textContent = "Searching for: " + rows.map(r => `${(LABELS[r.stat] || [r.stat])[1] || r.stat} ${r.op === "ge" ? "at least" : r.op === "le" ? "at most" : "about"} ${r.val}`).join(", ") + ". Change the boxes below to adjust.";
+  try { gcEvent("finder-ask"); } catch (e) {}
+}
+$("xAskGo").onclick = askGo;
+$("xAsk").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); askGo(); } });
 $("xClear").onclick = () => { finder.rows = FINDER_DEFAULT.map(r => ({ ...r })); finder.sortKey = null; renderFinderRows(); queueFinder(); };
 $("xPresets").addEventListener("click", e => {
   const b = e.target.closest("[data-preset]"); if (!b) return;
