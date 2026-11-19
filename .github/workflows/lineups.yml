@@ -24,3 +24,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: python fetch_lineups.py
+      - run: python fetch_cup.py

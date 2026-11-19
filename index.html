@@ -4794,6 +4794,7 @@ function initSeasonPicker(idx) {
   const opts = [`<option value="current">${esc(idx.current && idx.current.label ? idx.current.label + " (current)" : "Current season")}</option>`];
   const past = (idx.seasons || []).filter(x => x && x.file);
   if (past.length) opts.push(`<optgroup label="Past seasons">${past.map(x => `<option value="s:${esc(x.file)}">${esc(x.label)}</option>`).join("")}</optgroup>`);
+  opts.push(`<optgroup label="Special games"><option value="cup">NBA Cup games only (2026-27)</option></optgroup>`);
   if (past.length) opts.push(`<optgroup label="Combined seasons"><option value="since">Since a year you pick…</option></optgroup>`);
   if (idx.career && idx.career.file) opts.push(`<optgroup label="Careers"><option value="career">Career averages</option></optgroup>`);
   sel.innerHTML = opts.join("");
@@ -4822,7 +4823,8 @@ $("fSeason").addEventListener("change", () => {
       $("status").innerHTML = "<i style='background:var(--bad)'></i>Couldn't combine those seasons"; $("fSeason").value = "current"; loadDataset("stats.json", "current", false).catch(showLoadError); });
     return;
   }
-  if (v === "career" && seasonIndex && seasonIndex.career) { url = seasonIndex.career.file; mode = "career"; }
+  if (v === "cup") { url = "data/cup/2027.json"; mode = "cup"; }
+  else if (v === "career" && seasonIndex && seasonIndex.career) { url = seasonIndex.career.file; mode = "career"; }
   else if (v.startsWith("s:")) { url = v.slice(2); mode = "past"; }
   $("status").innerHTML = "<i></i>Loading…";
   loadDataset(url, mode, false).catch(() => {
