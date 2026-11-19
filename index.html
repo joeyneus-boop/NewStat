@@ -3672,10 +3672,41 @@ function plCareerTiles(pl) {
   const t = [["PTS", pl.pts], ["REB", pl.reb], ["AST", pl.ast], ["STL", pl.stl], ["BLK", pl.blk], ["TS%", pl.ts]];
   return `<h3 class="pl-h">Career averages</h3><div class="pl-tiles">${t.map(x => `<div class="panel pl-tile"><b>${x[1] == null || !isFinite(x[1]) ? "–" : x[1].toFixed(1)}</b><span>${x[0]}</span></div>`).join("")}</div>`;
 }
+const PL_ADV_SETS = {
+  Defense: ["DEF_FGA", "OPP_FG_PCT", "OPP_FG_DIFF", "RIM_OPP_FGA", "RIM_OPP_FG_PCT", "OPP_3_FG_PCT", "CONTESTED", "DEFLECTIONS", "CHARGES", "LOOSE_BALLS", "BOX_OUTS"],
+  Tracking: ["TOUCHES", "TIME_OF_POSS", "DRIVES", "DRIVE_FG_PCT", "PASSES", "POT_AST", "SEC_AST", "CS_FGA", "CS_3_PCT", "PU_FGA", "PU_3_PCT", "DIST_MILES", "AVG_SPEED"],
+  Advanced: ["ON_ORTG", "ON_DRTG", "ON_NRTG", "PIE", "AST_PCT", "OREB_PCT", "DREB_PCT", "TM_PTS_PCT", "PTS_PAINT", "PTS_FB", "PTS_2ND", "PFD"]
+};
+const plAdvCache = {};
+function plAdvLoad(y) { if (!(y in plAdvCache)) plAdvCache[y] = fetchCached("data/adv/" + y + ".json").catch(() => null); return plAdvCache[y]; }
+async function plAdvDraw(pl, group, box) {
+  box.innerHTML = '<p class="rk-note">Loading…</p>';
+  const yrs = pl.s.map(x => x[0]).filter(y => y >= 1997);
+  const files = await Promise.all(yrs.map(plAdvLoad));
+  const keys = PL_ADV_SETS[group], rows = [];
+  yrs.slice().reverse().forEach(y => {
+    const a = files[yrs.indexOf(y)]; const r = a && a.p && a.p[pl.id]; if (!r) return;
+    const idx = keys.map(k => a.cols.indexOf(k));
+    if (idx.every(i => i < 0 || r[i] == null)) return;
+    rows.push(`<tr><td>${esc(psYl(y))}</td>${idx.map((i, n) => `<td>${i < 0 || r[i] == null ? "–" : (TWO_DECIMALS.includes(keys[n]) ? Number(r[i]).toFixed(2) : Number(r[i]).toFixed(1))}</td>`).join("")}</tr>`);
+  });
+  if (!rows.length) { box.innerHTML = '<p class="rk-note">No ' + group.toLowerCase() + ' data for this player. NBA.com tracks defense from 2013-14, hustle stats from 2015-16 on.</p>'; return; }
+  const head = keys.map(k => `<th title="${esc((LABELS[k] || [k, k])[1])}">${esc((LABELS[k] || [k])[0])}</th>`).join("");
+  box.innerHTML = `<div class="pl-tblw"><table class="pl-tbl"><thead><tr><th>Season</th>${head}</tr></thead><tbody>${rows.join("")}</tbody></table></div><p class="rk-note" style="margin-top:8px">Per-game numbers and percentages from NBA.com. Hover a column name for what it means. Lower is better for opponent FG% and defensive rating.</p>`;
+}
 async function plSections(pl) {
   const mv = await psMovesLoad();
-  return `${plCareerTiles(pl)}<div class="pl-grid"><div class="panel pl-card"><h3>Career path</h3>${plPathHtml(pl, mv)}</div></div><div class="panel pl-card" style="margin-top:12px"><h3>Season by season</h3>${plTableHtml(pl)}</div>`;
+  const adv = pl.y2 >= 1997 ? `<div class="panel pl-card" style="margin-top:12px"><h3>Defense, tracking and advanced</h3><div class="pl-advtabs" style="display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap">${Object.keys(PL_ADV_SETS).map((g, i) => `<button class="btn sm${i ? "" : " on"}" data-pladv="${g}">${g}</button>`).join("")}</div><div class="plAdvBox" data-id="${esc(pl.id)}"><p class="rk-note">Loading…</p></div></div>` : "";
+  return `${plCareerTiles(pl)}<div class="pl-grid"><div class="panel pl-card"><h3>Career path</h3>${plPathHtml(pl, mv)}</div></div><div class="panel pl-card" style="margin-top:12px"><h3>Season by season</h3>${plTableHtml(pl)}</div>${adv}`;
 }
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-pladv]"); if (!b) return;
+  const card = b.closest(".pl-card"), box = card.querySelector(".plAdvBox"), pl = psById.get(box.dataset.id); if (!pl) return;
+  card.querySelectorAll("[data-pladv]").forEach(x => x.classList.toggle("on", x === b));
+  plAdvDraw(pl, b.dataset.pladv, box);
+});
+const _plSecOrig = plSections;
+plSections = async function (pl) { const h = await _plSecOrig(pl); setTimeout(() => { const box = document.querySelector(".plAdvBox"); if (box && box.dataset.id === pl.id) plAdvDraw(pl, "Defense", box); }, 0); return h; };
 const _plCopy = (nm, msgId) => () => { const u = location.origin + location.pathname + "#player=" + encodeURIComponent(nm); (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => { $(msgId).textContent = "Link copied"; }).catch(() => { $(msgId).textContent = u; }); };
 async function renderPlayer() {
   const body = $("plBody"); if (!body) return;
