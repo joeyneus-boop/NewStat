@@ -16,12 +16,17 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install playwright && playwright install --with-deps chromium
+      - run: pip install nba_api
+      - name: Refresh the stats first so the post is never stale
+        run: |
+          python fetch_stats.py
+          python build_teams.py current
       - run: python make_post.py
       - name: Save the post
         run: |
           git config user.name "stats-bot"
           git config user.email "stats-bot@users.noreply.github.com"
-          git add -A posts
+          git add -A posts stats.json data/teams
           git diff --staged --quiet || git commit -m "Daily post"
           git pull --rebase --autostash origin main
           git push
