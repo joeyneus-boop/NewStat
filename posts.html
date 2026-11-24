@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily posts · New-Stat</title>
+<style>
+:root{--bg:#0b1220;--panel:#142241;--text:#e9eef7;--muted:#8995ad;--acc:#ff7a2f}
+@media (prefers-color-scheme: light){:root{--bg:#f4f6fa;--panel:#fff;--text:#14203a;--muted:#5d6b86}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sans-serif;line-height:1.45}
+.w{max-width:980px;margin:0 auto;padding:20px 16px 60px}a{color:var(--acc)}
+h1{margin:6px 0 4px;font-size:28px}.sub{color:var(--muted);margin:0 0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.card{background:var(--panel);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.card img{width:100%;border-radius:10px;display:block}.card b{font-size:17px}.card small{color:var(--muted)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button,a.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:9px 12px;cursor:pointer;background:var(--acc);color:#1a0d03;text-decoration:none;font-size:14px}
+button.alt{background:transparent;color:var(--text);border:1px solid var(--muted)}
+.first{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,380px) 1fr;gap:18px}
+@media(max-width:700px){.first{grid-template-columns:1fr}}
+pre{white-space:pre-wrap;font:inherit;background:rgba(127,127,127,.12);padding:10px;border-radius:10px;margin:0}
+</style></head><body><div class="w">
+<a href="./">← New-Stat</a>
+<h1>Daily posts</h1>
+<p class="sub">A new picture and caption is made every morning. Download the picture, copy the caption, post it. The last 14 days are kept.</p>
+<div class="grid" id="g"><p class="sub">Loading…</p></div>
+<p class="sub" style="margin-top:24px">Captions are made automatically from the day's stats. Check the numbers look right before you post.</p>
+</div>
+<script>
+const g=document.getElementById("g");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function nice(d){const [y,m,dd]=d.split("-").map(Number);return new Date(y,m-1,dd).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});}
+fetch("posts/index.json?"+Date.now()).then(r=>r.json()).then(h=>{
+  g.innerHTML=h.map((p,i)=>`<div class="card${i?"":" first"}"><div><img loading="${i?"lazy":"eager"}" src="posts/${p.date}.png" alt="${esc(p.title)}"></div><div style="display:flex;flex-direction:column;gap:10px"><div><b>${esc(p.title)}</b><br><small>${nice(p.date)}${i?"":" · today's post"}</small></div>
+  <div class="btns"><a class="btn" href="posts/${p.date}.png" download="new-stat-${p.date}.png">Download picture</a><button data-c="${i}" data-k="long">Copy caption</button><button class="alt" data-c="${i}" data-k="short">Copy short</button></div>${i?"":`<pre>${esc(p.long)}</pre>`}</div></div>`).join("");
+  g.addEventListener("click",e=>{const b=e.target.closest("button[data-c]");if(!b)return;const t=h[+b.dataset.c][b.dataset.k];
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(()=>{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();document.execCommand("copy");a.remove();}).finally(()=>{const o=b.textContent;b.textContent="Copied!";setTimeout(()=>b.textContent=o,1400);});});
+}).catch(()=>{g.innerHTML='<p class="sub">No posts yet. The first one appears after tomorrow morning\'s update.</p>';});
+</script></body></html>

@@ -1,0 +1,27 @@
+name: Make daily post
+on:
+  schedule:
+    - cron: "30 10 * * *"   # about 5:30 AM Eastern, after the stats and lineups update
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright && playwright install --with-deps chromium
+      - run: python make_post.py
+      - name: Save the post
+        run: |
+          git config user.name "stats-bot"
+          git config user.email "stats-bot@users.noreply.github.com"
+          git add -A posts
+          git diff --staged --quiet || git commit -m "Daily post"
+          git pull --rebase --autostash origin main
+          git push
