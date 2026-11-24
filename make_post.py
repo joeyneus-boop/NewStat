@@ -233,9 +233,9 @@ def ch_usage():
     pool = [p for p in players if p["GP"] >= max(5, 0.6 * maxgp) and p["MIN"] >= 24 and isinstance(p.get("USG_PCT"), (int, float)) and isinstance(p.get("TS_PCT"), (int, float))]
     avg = sum(p["TS_PCT"] for p in pool) / len(pool)
     star = sorted(pool, key=lambda p: -p["PTS"])[:14]
-    elite = [p for p in pool if p["USG_PCT"] >= 28 and p["TS_PCT"] >= avg + 5]
+    elite = [p for p in pool if p["USG_PCT"] >= 28 and p["TS_PCT"] >= avg + 4]
     pts = [dict(x=p["USG_PCT"], y=p["TS_PCT"], label=last(p) if p in star or p in elite else None, w=p["PTS"]) for p in pool]
-    take = (f'{len(elite)} players use 28%+ of their team\'s plays and still shoot 5+ points above the average TS%: {join_names([last(p) for p in sorted(elite, key=lambda p: -p["TS_PCT"])[:5]])}.'
+    take = (f'{"Only " + str(len(elite)) + " players" if len(elite) > 1 else "Only 1 player"} use 28%+ of their team\'s plays and still shoot 4+ points above the group\'s average TS% ({avg:.0f}%): {join_names([last(p) for p in sorted(elite, key=lambda p: -p["TS_PCT"])[:5]])}.'
             if elite else 'High usage usually costs efficiency: the more plays a player uses, the harder the shots get.')
     svg = scatter_svg(pts, "Usage: share of team plays used while on the floor (%)", "True shooting % (efficiency)", xref=sum(p["USG_PCT"] for p in pool) / len(pool), yref=avg,
                       quad=[(930, 30, "end", "HIGH LOAD, HIGH EFFICIENCY"), (95, 780 - 90, "start", "LOW LOAD, LOW EFFICIENCY")], xfmt="{:g}%", yfmt="{:g}%")
