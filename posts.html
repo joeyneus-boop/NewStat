@@ -29,8 +29,8 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 function nice(d){const [y,m,dd]=d.split("-").map(Number);return new Date(y,m-1,dd).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});}
 fetch("posts/index.json?"+Date.now()).then(r=>r.json()).then(h=>{
   g.innerHTML=h.map((p,i)=>`<div class="card${i?"":" first"}"><div><img loading="${i?"lazy":"eager"}" src="posts/${p.date}.png" alt="${esc(p.title)}"></div><div style="display:flex;flex-direction:column;gap:10px"><div><b>${esc(p.title)}</b><br><small>${nice(p.date)}${i?"":" · today's post"}</small></div>
-  <div class="btns"><a class="btn" href="posts/${p.date}.png" download="new-stat-${p.date}.png">Download picture</a><button data-c="${i}" data-k="long">Copy caption</button><button class="alt" data-c="${i}" data-k="short">Copy short</button></div>${i?"":`<pre>${esc(p.long)}</pre>`}</div></div>`).join("");
-  g.addEventListener("click",e=>{const b=e.target.closest("button[data-c]");if(!b)return;const t=h[+b.dataset.c][b.dataset.k];
+  <div class="btns"><a class="btn" href="posts/${p.date}.png" download="new-stat-${p.date}.png">Download picture</a><button data-c="${i}" data-k="long">Copy caption</button><button class="alt" data-c="${i}" data-k="short">Copy short</button></div>${i?"":`<pre>${esc(p.long)}</pre>`}${p.answer?`<button class="alt" data-ans="${i}">Show answer (post it tomorrow)</button>`:""}</div></div>`).join("");
+  g.addEventListener("click",e=>{const an=e.target.closest("button[data-ans]");if(an){an.textContent="Answer: "+h[+an.dataset.ans].answer;return;}const b=e.target.closest("button[data-c]");if(!b)return;const t=h[+b.dataset.c][b.dataset.k];
     (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).catch(()=>{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();document.execCommand("copy");a.remove();}).finally(()=>{const o=b.textContent;b.textContent="Copied!";setTimeout(()=>b.textContent=o,1400);});});
 }).catch(()=>{g.innerHTML='<p class="sub">No posts yet. The first one appears after tomorrow morning\'s update.</p>';});
 </script></body></html>

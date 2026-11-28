@@ -29,13 +29,15 @@ h1{position:absolute;left:60px;top:84px;font-size:64px;line-height:1.02;font-wei
 .lu b{font-size:27px!important;white-space:normal!important;line-height:1.15}.lu{height:98px!important}'''
 
 
-def page(title, sub, rows, foot, lineup=False):
+def page(title, sub, rows, foot, lineup=False, take=""):
     cls = "row lu" if lineup else "row"
     body = "".join(
         f'<div class="{cls}"><div class=rk>{i+1}</div><div class=nm><b>{html.escape(r[0])}</b><span>{html.escape(r[1])}</span></div>'
         f'<div class=v>{r[2]}<small>{html.escape(r[3])}</small></div></div>' for i, r in enumerate(rows))
-    return (f'<!doctype html><meta charset=utf-8><style>{CSS}</style><div class=bar></div><div class=brand>NEW-STAT</div>'
-            f'<h1>{title}</h1><div class=sub>{sub}</div><div class=list>{body}</div>'
+    tk = (f'<div class=take><div><i>TAKEAWAY</i>{html.escape(take)}</div></div>' if take else "")
+    css = CSS + '.take{position:absolute;left:60px;right:60px;top:1112px;height:150px;border-radius:20px;background:rgba(255,122,47,.14);border:2px solid #ff7a2f;padding:18px 24px;font-size:28px;font-weight:700;line-height:1.28;display:flex;align-items:center}.take i{color:#ff7a2f;font-style:normal;font-weight:900;margin-right:10px}'
+    return (f'<!doctype html><meta charset=utf-8><style>{css}</style><div class=bar></div><div class=brand>NEW-STAT</div>'
+            f'<h1>{title}</h1><div class=sub>{sub}</div><div class=list>{body}</div>{tk}'
             f'<div class=ft><span>{foot}</span><b>newstat.app</b></div>')
 
 
@@ -294,6 +296,127 @@ def ch_luck():
 CHARTS = [ch_teams, ch_usage, ch_playmakers, ch_luck, ch_bench, ch_age]
 
 
+# ---------------- fun / in-depth posts ----------------
+FUN_CAP = {}
+prev = {}
+try:
+    prev = {str(p["ID"]): p for p in json.load(open("data/2026.json"))["players"]}
+except Exception:
+    pass
+
+
+def rows_html(rows):
+    out = []
+    for i, r in enumerate(rows):
+        out.append(f'<div class=row><div class=rk>{i+1}</div><div class=nm><b>{html.escape(r[0])}</b><span>{html.escape(r[1])}</span></div>'
+                   f'<div class=v>{r[2]}<small>{html.escape(r[3])}</small></div></div>')
+    return '<div style="width:960px">' + "".join(out) + "</div>"
+
+
+def fn_risers():
+    pool = []
+    for p in qual:
+        q = prev.get(str(p["ID"]))
+        if q and q["GP"] >= 30 and q["MIN"] >= 15:
+            pool.append((p["PTS"] - q["PTS"], p, q))
+    pool.sort(key=lambda x: -x[0])
+    up, down = pool[:8], pool[-1]
+    rows = [(p["PLAYER"], f'{p["TEAM"]} · {q["PTS"]:.1f} → {p["PTS"]:.1f} PPG', f"{d:+.1f}", "points per game vs last season") for d, p, q in up]
+    take = (f'{up[0][1]["PLAYER"]} is up {up[0][0]:.1f} points per game on last season, the biggest jump in the league. '
+            f'On the other side, {down[1]["PLAYER"]} is down {abs(down[0]):.1f}.')
+    FUN_CAP["risers"] = (
+        f"Who has jumped the most this season? \U0001F4C8\n\nBiggest scoring jumps vs last season:\n\n" + "\n".join(f"{i+1}. {r[0]} {r[2]} ({r[1].split(' · ')[1]})" for i, r in enumerate(rows[:5])) +
+        f"\n\n{take}\n\nWho's your breakout player? Tell us below. Stats through {upd}, ESPN. More at newstat.app (link in bio).",
+        "Biggest scoring jumps vs last season \U0001F4C8\n\n" + "\n".join(f"{i+1}. {r[0].split(' ', 1)[-1]} {r[2]}" for i, r in enumerate(rows[:3])) + "\n\nnewstat.app", "")
+    return ("Biggest scoring<br>jumps this season", "Points per game, 2026-27 vs 2025-26 · min 30 games last year", rows_html(rows), take, f"Stats: ESPN · through {upd}", "risers")
+
+
+def fn_twins():
+    pool = [p for p in players if p["GP"] >= max(5, 0.6 * maxgp) and p["MIN"] >= 22 and all(isinstance(p.get(k), (int, float)) for k in ("PTS40", "REB40", "AST40", "TS_PCT", "USG_PCT", "FG3A", "STL", "BLK"))]
+    keys = ("PTS40", "REB40", "AST40", "TS_PCT", "USG_PCT", "FG3A", "STL", "BLK")
+    import math
+    sd = {k: (sum((p[k] - sum(q[k] for q in pool) / len(pool)) ** 2 for p in pool) / len(pool)) ** 0.5 or 1 for k in keys}
+    pairs = []
+    for i, a in enumerate(pool):
+        for b in pool[i + 1:]:
+            if a["TEAM"] == b["TEAM"]:
+                continue
+            d = math.sqrt(sum(((a[k] - b[k]) / sd[k]) ** 2 for k in keys))
+            pairs.append((d, a, b))
+    pairs.sort(key=lambda x: x[0])
+    d, a, b = pairs[datetime.now(timezone.utc).date().toordinal() % 6]
+    stats = [("Points / 36", "PTS40", "{:.1f}"), ("Rebounds / 36", "REB40", "{:.1f}"), ("Assists / 36", "AST40", "{:.1f}"), ("True shooting %", "TS_PCT", "{:.1f}%"),
+             ("Usage %", "USG_PCT", "{:.1f}%"), ("3PA / game", "FG3A", "{:.1f}"), ("Steals / game", "STL", "{:.1f}"), ("Blocks / game", "BLK", "{:.1f}")]
+    rows = "".join(f'<div style="display:grid;grid-template-columns:1fr 300px 1fr;align-items:center;height:78px;border-bottom:1px solid rgba(255,255,255,.08)">'
+                   f'<div style="text-align:right;font-size:40px;font-weight:900;color:#fff">{f.format(a[k])}</div><div style="text-align:center;color:#8995ad;font-size:23px;font-weight:700">{lab}</div>'
+                   f'<div style="font-size:40px;font-weight:900;color:#fff">{f.format(b[k])}</div></div>' for lab, k, f in stats)
+    head = (f'<div style="display:grid;grid-template-columns:1fr 300px 1fr;align-items:center;height:140px">'
+            f'<div style="text-align:right"><div style="font-size:42px;font-weight:900;color:#ff7a2f">{html.escape(a["PLAYER"])}</div><div style="font-size:24px;color:#8995ad;font-weight:600">{a["TEAM"]} · {a["MIN"]:.0f} MPG</div></div>'
+            f'<div style="text-align:center;font-size:48px;font-weight:900;color:#8995ad">≈</div>'
+            f'<div><div style="font-size:42px;font-weight:900;color:#ff7a2f">{html.escape(b["PLAYER"])}</div><div style="font-size:24px;color:#8995ad;font-weight:600">{b["TEAM"]} · {b["MIN"]:.0f} MPG</div></div></div>')
+    body = f'<div style="width:960px">{head}{rows}</div>'
+    take = f'{a["PLAYER"]} and {b["PLAYER"]} have nearly identical production once you adjust for minutes, even though they play for different teams. Would you have guessed it?'
+    FUN_CAP["twins"] = (
+        f"Statistical twins \U0001F46F\n\n{a['PLAYER']} ({a['TEAM']}) and {b['PLAYER']} ({b['TEAM']}) are almost the same player on paper this season: {a['PTS40']:.1f} vs {b['PTS40']:.1f} points per 36, {a['REB40']:.1f} vs {b['REB40']:.1f} rebounds, {a['AST40']:.1f} vs {b['AST40']:.1f} assists, {a['TS_PCT']:.0f}% vs {b['TS_PCT']:.0f}% true shooting.\n\nWe matched all {len(pool)} players with 22+ MPG on 8 stats. Who is your favorite twin pair? \U0001F447\n\nStats through {upd}, ESPN. More at newstat.app (link in bio).",
+        f"Statistical twins \U0001F46F\n\n{a['PLAYER']} ≈ {b['PLAYER']}\n\nSame production, different teams. newstat.app", "")
+    return ("Statistical twins:<br>who is the same player?", f"Closest match in the league across 8 per-minute stats · min 22 MPG", body, take, f"Stats: ESPN · through {upd}", "twins")
+
+
+def fn_mystery():
+    cand = sorted([p for p in qual if p["MIN"] >= 25], key=lambda p: -p["PER"])[:25]
+    p = cand[datetime.now(timezone.utc).date().toordinal() % len(cand)]
+    tiles = [("PPG", f'{p["PTS"]:.1f}'), ("RPG", f'{p["REB"]:.1f}'), ("APG", f'{p["AST"]:.1f}'), ("TS%", f'{p["TS_PCT"]:.1f}'), ("3P%", f'{p["FG3_PCT"]:.1f}' if isinstance(p.get("FG3_PCT"), (int, float)) else "–"), ("MPG", f'{p["MIN"]:.1f}')]
+    tiles_html = "".join(f'<div style="background:rgba(255,255,255,.07);border-radius:24px;padding:26px 10px;text-align:center"><div style="font-size:72px;font-weight:900;color:#fff;line-height:1">{v}</div><div style="color:#8995ad;font-size:26px;font-weight:700;margin-top:6px">{l}</div></div>' for l, v in tiles)
+    pos = {"G": "Guard", "F": "Forward", "C": "Center"}.get(p.get("POS"), "Player")
+    hints = [f'Age {p["AGE"]:.0f}' if p.get("AGE") else None, f'Position: {pos}', f'Drafted {p["DRAFT"]}' if p.get("DRAFT") else None, f'Plays in the {"East" if p["TEAM"] in EAST else "West"}']
+    hints_html = "".join(f'<div style="background:rgba(255,122,47,.16);border:2px solid #ff7a2f;border-radius:999px;padding:10px 24px;font-size:28px;font-weight:800;color:#fff">{html.escape(h)}</div>' for h in hints if h)
+    body = (f'<div style="width:960px"><div style="font-size:150px;font-weight:900;color:#ff7a2f;text-align:center;line-height:1;margin:6px 0 10px">?</div>'
+            f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">{tiles_html}</div>'
+            f'<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:30px">{hints_html}</div></div>')
+    take = "Drop your guess in the comments. Post the answer as a reply tomorrow."
+    FUN_CAP["mystery"] = (
+        f"Guess the player \U0001F575️\n\n{p['PTS']:.1f} PPG, {p['REB']:.1f} RPG, {p['AST']:.1f} APG on {p['TS_PCT']:.0f}% true shooting this season.\n\nWho is it? Drop your guess below \U0001F447 (answer in the comments tomorrow).\n\nStats through {upd}, ESPN. More at newstat.app (link in bio).",
+        f"Guess the player \U0001F575️\n\n{p['PTS']:.1f} / {p['REB']:.1f} / {p['AST']:.1f} on {p['TS_PCT']:.0f}% TS. Who is it?\n\nnewstat.app", p["PLAYER"])
+    return ("Guess the player:<br>who has this line?", "2026-27 season so far · one of the top 25 by PER", body, take, f"Stats: ESPN · through {upd}", "mystery")
+
+
+EAST = {"ATL", "BOS", "BKN", "CHA", "CHI", "CLE", "DET", "IND", "MIA", "MIL", "NY", "NYK", "ORL", "PHI", "TOR", "WSH", "WAS"}
+
+
+def fn_five():
+    pool = [p for p in players if p["GP"] >= max(5, 0.6 * maxgp) and p["MIN"] >= 25 and isinstance(p.get("PER"), (int, float))]
+    pick = []
+    for pos, n in (("G", 2), ("F", 2), ("C", 1)):
+        pick += sorted([p for p in pool if p.get("POS") == pos], key=lambda p: -p["PER"])[:n]
+    rows = [(p["PLAYER"], f'{p["TEAM"]} · {p["PTS"]:.1f} pts · {p["REB"]:.1f} reb · {p["AST"]:.1f} ast', f'{p["PER"]:.1f}', "PER") for p in pick]
+    tp = sum(p["PTS"] for p in pick); tr = sum(p["REB"] for p in pick); ta = sum(p["AST"] for p in pick)
+    take = f'This lineup would average {tp:.0f} points, {tr:.0f} rebounds and {ta:.0f} assists per game. How many teams are represented? {len({p["TEAM"] for p in pick})} of 5 different.'
+    FUN_CAP["five"] = (
+        "The All-Stat Five so far this season \U0001F3C6\n\nBest player by PER at each spot:\n\n" + "\n".join(f"{p['PLAYER']} ({p['TEAM']}) PER {p['PER']:.1f}" for p in pick) +
+        f"\n\n{take}\n\nWho would you swap out? \U0001F447 Stats through {upd}, ESPN. More at newstat.app (link in bio).",
+        "The All-Stat Five \U0001F3C6\n\n" + "\n".join(p["PLAYER"] for p in pick) + "\n\nBest PER at each spot. newstat.app", "")
+    return ("The All-Stat Five<br>so far this season", "Best PER at each spot · min 25 MPG · 2 guards, 2 forwards, 1 center", rows_html(rows), take, f"Stats: ESPN · through {upd}", "five")
+
+
+FUN = [fn_risers, fn_twins, fn_mystery, fn_five]
+FUN_KEYS = ("risers", "twins", "mystery", "five")
+
+PALETTES = [
+    ("#ff7a2f", "255,122,47", "#0b1220", "#142241"),
+    ("#22d3ee", "34,211,238", "#061a22", "#0e3140"),
+    ("#a78bfa", "167,139,250", "#120d26", "#241a4a"),
+    ("#f472b6", "244,114,182", "#1f0b19", "#3b1730"),
+    ("#fbbf24", "251,191,36", "#1a1405", "#33270a"),
+    ("#fb7185", "251,113,133", "#1c0a0e", "#381420"),
+    ("#60a5fa", "96,165,250", "#08142a", "#10284f"),
+]
+
+
+def recolor(doc, ordn):
+    acc, rgb, b1, b2 = PALETTES[ordn % len(PALETTES)]
+    return doc.replace("#ff7a2f", acc).replace("255,122,47", rgb).replace("#0b1220", b1).replace("#142241", b2)
+
+
 def list_takeaway(rows, key):
     num = lambda x: float(x.replace("%", "").replace("+", ""))
     try:
@@ -323,39 +446,44 @@ def caption(title, rows, key, sub, take="", is_chart=False):
 
 def main():
     day = datetime.now(timezone.utc).date()
+    ordn = day.toordinal()
     forced = sys.argv[1] if len(sys.argv) > 1 else None
     res = None
     if forced is not None and forced.startswith("c"):
         res = CHARTS[int(forced[1:])]()
+    elif forced is not None and forced.startswith("f"):
+        res = FUN[int(forced[1:])]()
     elif forced is not None:
         res = THEMES[int(forced)]()
     else:
-        ordn = day.toordinal()
-        use_chart = ordn % 2 == 1
-        pool = CHARTS if use_chart else THEMES
-        order = [(ordn // 2 + i) % len(pool) for i in range(len(pool))]
+        kind = ("chart", "fun", "chart", "list")[ordn % 4]
+        pool = {"chart": CHARTS, "fun": FUN, "list": THEMES}[kind]
+        order = [(ordn // 4 + i) % len(pool) for i in range(len(pool))]
         for idx in order:
             try:
                 r = pool[idx]()
-                if use_chart or (r[2] and len(r[2]) >= 3):
+                if kind != "list" or (r[2] and len(r[2]) >= 3):
                     res = r
                     break
             except Exception as e:
                 print("theme", idx, "failed:", e)
-        if not res and use_chart:
+        if not res:
             res = THEMES[ordn % len(THEMES)]()
     if not res:
         sys.exit("no theme worked")
-    is_chart = res[5] in ("team ratings", "usage vs TS", "ast vs tov", "luck", "minutes vs per", "age vs pts")
     title, sub, third, fourth, fifth, key = res
-    if is_chart:
-        svg, take, foot = third, fourth, fifth
-        doc = chart_page(title, sub, svg, take, foot)
+    is_chart = key in ("team ratings", "usage vs TS", "ast vs tov", "luck", "minutes vs per", "age vs pts")
+    is_fun = key in FUN_KEYS
+    answer = ""
+    if is_chart or is_fun:
+        doc = chart_page(title, sub, third, fourth, fifth)
         rows = []
+        take = fourth
     else:
         rows, foot, lineup = third, fourth, fifth
-        doc = page(title, sub, rows, foot, lineup)
         take = list_takeaway(rows, key)
+        doc = page(title, sub, rows[:8], foot, lineup, take)
+    doc = recolor(doc, ordn)
     os.makedirs("posts", exist_ok=True)
     open("posts/_p.html", "w").write(doc)
     from playwright.sync_api import sync_playwright
@@ -374,8 +502,13 @@ def main():
     ds = day.isoformat()
     import shutil
     shutil.copy("posts/latest.png", f"posts/{ds}.png")
-    long, short = caption(title, rows, key, sub, take, is_chart)
+    if is_fun:
+        long, short, answer = FUN_CAP[key]
+    else:
+        long, short = caption(title, rows, key, sub, take, is_chart)
     meta = {"date": ds, "title": title.replace("<br>", " "), "long": long, "short": short}
+    if answer:
+        meta["answer"] = answer
     hist = []
     try:
         hist = json.load(open("posts/index.json"))
@@ -390,6 +523,7 @@ def main():
         if f.endswith(".png") and f != "latest.png" and f[:-4] not in keep:
             os.remove("posts/" + f)
     print("made", meta["title"])
+
 
 
 main()
