@@ -156,7 +156,7 @@ def scatter_svg(pts, xt, yt, W=960, H=790, inv_y=False, hl=None, xref=None, yref
     # dots first
     for p in pts:
         if not p.get("label"):
-            o.append(f'<circle cx="{sx(p["x"]):.1f}" cy="{sy(p["y"]):.1f}" r="6" fill="#5b7fc7" fill-opacity=".75"/>')
+            o.append(f'<circle cx="{sx(p["x"]):.1f}" cy="{sy(p["y"]):.1f}" r="6" fill="#8a96b5" fill-opacity=".75"/>')
     boxes = [(sx(q["x"]) - 9, sy(q["y"]) - 9, sx(q["x"]) + 9, sy(q["y"]) + 9) for q in pts]
     def area(b):
         a = 0
@@ -458,7 +458,8 @@ def main():
     else:
         kind = ("chart", "fun", "chart", "list")[ordn % 4]
         pool = {"chart": CHARTS, "fun": FUN, "list": THEMES}[kind]
-        order = [(ordn // 4 + i) % len(pool) for i in range(len(pool))]
+        base = ordn // 2 if kind == "chart" else ordn // 4
+        order = [(base + i) % len(pool) for i in range(len(pool))]
         for idx in order:
             try:
                 r = pool[idx]()
